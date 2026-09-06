@@ -3,7 +3,7 @@ import { MoreHorizontal, Plus, Clock, Trash2, GripVertical } from 'lucide-react'
 import TaskModal from '../../components/TaskModal';
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:5000/api/tasks';
+const API_BASE_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/tasks`;
 
 export default function KanbanBoard() {
     const [columns, setColumns] = useState([

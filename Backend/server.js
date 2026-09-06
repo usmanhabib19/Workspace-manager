@@ -38,10 +38,14 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-    console.log(`🚀 Server running on port ${PORT}`);
-    console.log(`   Auth     → http://localhost:${PORT}/api/auth`);
-    console.log(`   Tasks    → http://localhost:${PORT}/api/tasks`);
-    console.log(`   Requests → http://localhost:${PORT}/api/requests`);
-    console.log(`   Health   → http://localhost:${PORT}/api/health`);
-});
+if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+    app.listen(PORT, () => {
+        console.log(`🚀 Server running on port ${PORT}`);
+        console.log(`   Auth     → http://localhost:${PORT}/api/auth`);
+        console.log(`   Tasks    → http://localhost:${PORT}/api/tasks`);
+        console.log(`   Requests → http://localhost:${PORT}/api/requests`);
+        console.log(`   Health   → http://localhost:${PORT}/api/health`);
+    });
+}
+
+module.exports = app;
