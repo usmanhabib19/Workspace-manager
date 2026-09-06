@@ -17,6 +17,21 @@ app.use('/api/auth',     require('./routes/authRoutes'));
 app.use('/api/tasks',    require('./routes/taskRoutes'));
 app.use('/api/requests', require('./routes/pendingRequestRoutes'));
 
+// ─── Welcome / Root Route ──────────────────────────────────────────
+app.get('/', (req, res) => {
+    res.json({
+        message: 'Workspace Manager API is running successfully!',
+        status: 'online',
+        database: mongoose.connection.readyState === 1 ? 'connected' : 'connecting/disconnected',
+        endpoints: {
+            auth: '/api/auth',
+            tasks: '/api/tasks',
+            requests: '/api/requests',
+            health: '/api/health'
+        }
+    });
+});
+
 // ─── Health Check ─────────────────────────────────────────────────
 app.get('/api/health', (req, res) => {
     res.json({
