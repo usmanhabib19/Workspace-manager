@@ -1,0 +1,9 @@
+{
+  "name": "workspace-manager",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "build": "npm run build --prefix Frontend",
+    "install:all": "npm install --prefix Frontend && npm install --prefix Backend"
+  }
+}
