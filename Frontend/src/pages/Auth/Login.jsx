@@ -5,7 +5,7 @@ import { setCredentials } from '../../store/AuthSlice';
 import { Mail, Lock, Eye, EyeOff, ArrowRight, Sparkles, AlertCircle, CheckCircle } from 'lucide-react';
 import axios from 'axios';
 
-const API_BASE_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/auth`;
+const API_BASE_URL = `${import.meta.env.VITE_API_URL || 'https://server-six-tau-53.vercel.app/api'}/auth`;
 
 export default function Login() {
     const [email, setEmail] = useState('');

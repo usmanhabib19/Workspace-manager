@@ -7,10 +7,35 @@ const app = express();
 app.use(express.json({ limit: '10mb' })); // 10mb for base64 attachments
 app.use(cors());
 
-// ─── MongoDB Connection ────────────────────────────────────────────
-mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/kanban_workspace')
-    .then(() => console.log('✅ MongoDB Connected Successfully'))
-    .catch((err) => console.error('❌ Database connection error:', err));
+// ─── MongoDB Connection for Serverless & Long-running ──────────────
+let isConnected = false;
+const connectDB = async () => {
+    if (isConnected || mongoose.connection.readyState === 1) {
+        isConnected = true;
+        return;
+    }
+    try {
+        const db = await mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/kanban_workspace', {
+            serverSelectionTimeoutMS: 8000,
+            bufferCommands: false
+        });
+        isConnected = db.connections[0].readyState === 1;
+        console.log('✅ MongoDB Connected Successfully');
+    } catch (err) {
+        console.error('❌ Database connection error:', err);
+    }
+};
+
+// Middleware to ensure DB is connected before processing any API route
+app.use(async (req, res, next) => {
+    try {
+        await connectDB();
+        next();
+    } catch (err) {
+        console.error('DB middleware error:', err);
+        res.status(500).json({ error: 'Database connection failed. Please check MongoDB Atlas connection.' });
+    }
+});
 
 // ─── Routes ───────────────────────────────────────────────────────
 app.use('/api/auth',     require('./routes/authRoutes'));
