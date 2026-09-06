@@ -1,31 +1,12 @@
+const OWNER_EMAIL = import.meta.env.VITE_OWNER_EMAIL || 'mu801710@gmail.com';
+
 export const initialUsers = [
     {
         id: 'u-1',
-        name: 'Muhammad Usman',
-        email: 'usman@kinetic.work',
+        name: 'Muhammad Usman (Owner)',
+        email: OWNER_EMAIL,
         role: 'owner',
-        avatar: 'https://api.dicebear.com/7.x/initials/svg?seed=Muhammad%20Usman'
-    },
-    {
-        id: 'u-2',
-        name: 'Sara Khan',
-        email: 'sara@kinetic.work',
-        role: 'admin',
-        avatar: 'https://api.dicebear.com/7.x/initials/svg?seed=Sara%20Khan'
-    },
-    {
-        id: 'u-3',
-        name: 'Ali Raza',
-        email: 'ali@kinetic.work',
-        role: 'member',
-        avatar: 'https://api.dicebear.com/7.x/initials/svg?seed=Ali%20Raza'
-    },
-    {
-        id: 'u-4',
-        name: 'Zainab Ahmed',
-        email: 'zainab@kinetic.work',
-        role: 'viewer',
-        avatar: 'https://api.dicebear.com/7.x/initials/svg?seed=Zainab%20Ahmed'
+        avatar: `https://api.dicebear.com/7.x/initials/svg?seed=Muhammad%20Usman`
     }
 ];
 

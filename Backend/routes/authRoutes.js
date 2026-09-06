@@ -6,18 +6,21 @@ const User = require('../models/User');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecretjwtkey_workspace_2026';
 
+// Global Owner Email from .env
+const getOwnerEmail = () => (process.env.OWNER_EMAIL || 'mu801710@gmail.com').trim().toLowerCase();
+
 // ─────────────────────────────────────────────
 // REGISTER
 // ─────────────────────────────────────────────
 /**
  * POST /api/auth/register
- * Body: { name, email, password, role? }
- * Default role = 'member' unless specified.
- * Only the first user registered in a workspace becomes 'owner'.
+ * Body: { name, email, password }
+ * ONLY the email specified in OWNER_EMAIL from .env is granted the global 'owner' role.
+ * Every other user who registers will strictly receive the 'member' role.
  */
 router.post('/register', async (req, res) => {
     try {
-        const { name, email, password, role } = req.body;
+        const { name, email, password } = req.body;
 
         if (!name || !email || !password) {
             return res.status(400).json({ error: 'Name, email, and password are required' });
@@ -26,7 +29,8 @@ router.post('/register', async (req, res) => {
             return res.status(400).json({ error: 'Password must be at least 6 characters long' });
         }
 
-        const existingUser = await User.findOne({ email: email.toLowerCase() });
+        const normalizedEmail = email.trim().toLowerCase();
+        const existingUser = await User.findOne({ email: normalizedEmail });
         if (existingUser) {
             return res.status(400).json({ error: 'User with this email already exists' });
         }
@@ -34,13 +38,13 @@ router.post('/register', async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        // Validate role
-        const allowedRoles = ['owner', 'admin', 'member', 'viewer'];
-        const assignedRole = allowedRoles.includes(role) ? role : 'member';
+        // Check if this is the designated global website Owner from .env
+        const isGlobalOwner = normalizedEmail === getOwnerEmail();
+        const assignedRole = isGlobalOwner ? 'owner' : 'member';
 
         const newUser = new User({
             name,
-            email: email.toLowerCase(),
+            email: normalizedEmail,
             password: hashedPassword,
             role: assignedRole,
             avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name)}`
@@ -71,7 +75,7 @@ router.post('/register', async (req, res) => {
 /**
  * POST /api/auth/login
  * Body: { email, password }
- * Returns JWT token + user info including role.
+ * Verifies password and ensures role integrity (only .env email has 'owner' role).
  */
 router.post('/login', async (req, res) => {
     try {
@@ -81,7 +85,8 @@ router.post('/login', async (req, res) => {
             return res.status(400).json({ error: 'Please provide both email and password' });
         }
 
-        const user = await User.findOne({ email: email.toLowerCase() });
+        const normalizedEmail = email.trim().toLowerCase();
+        const user = await User.findOne({ email: normalizedEmail });
         if (!user) {
             return res.status(400).json({ error: 'Invalid email or password' });
         }
@@ -93,6 +98,17 @@ router.post('/login', async (req, res) => {
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
             return res.status(400).json({ error: 'Invalid email or password' });
+        }
+
+        // Ensure role consistency with .env OWNER_EMAIL
+        const isGlobalOwner = normalizedEmail === getOwnerEmail();
+        if (isGlobalOwner && user.role !== 'owner') {
+            user.role = 'owner';
+            await user.save();
+        } else if (!isGlobalOwner && user.role === 'owner') {
+            // Prevent non-env user from holding global owner status
+            user.role = 'member';
+            await user.save();
         }
 
         const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
@@ -117,10 +133,6 @@ router.post('/login', async (req, res) => {
 // ─────────────────────────────────────────────
 // GET CURRENT USER
 // ─────────────────────────────────────────────
-/**
- * GET /api/auth/me
- * Header: Authorization: Bearer <token>
- */
 router.get('/me', async (req, res) => {
     try {
         const authHeader = req.headers.authorization;
@@ -155,11 +167,6 @@ router.get('/me', async (req, res) => {
 // ─────────────────────────────────────────────
 // GET ALL USERS (workspace members list)
 // ─────────────────────────────────────────────
-/**
- * GET /api/auth/members
- * Returns all users with their roles (for workspace member directory).
- * Used by Owner to manage roles / by UI to show member cards.
- */
 router.get('/members', async (req, res) => {
     try {
         const users = await User.find({ isActive: true }).select('-password').sort({ role: 1, name: 1 });
@@ -170,29 +177,27 @@ router.get('/members', async (req, res) => {
 });
 
 // ─────────────────────────────────────────────
-// UPDATE USER ROLE  (Owner only — enforced by frontend; add middleware in production)
+// UPDATE USER ROLE (Admin / Member / Viewer only — Owner role cannot be assigned via API)
 // ─────────────────────────────────────────────
-/**
- * PATCH /api/auth/members/:id/role
- * Body: { role: 'admin' | 'member' | 'viewer' }
- * Only Owner can change roles.
- */
 router.patch('/members/:id/role', async (req, res) => {
     try {
         const { role } = req.body;
-        const allowedRoles = ['admin', 'member', 'viewer'];  // owner cannot be changed via API
+        const allowedRoles = ['admin', 'member', 'viewer']; // Owner role is strictly reserved for .env email
         if (!allowedRoles.includes(role)) {
-            return res.status(400).json({ error: 'Invalid role. Allowed: admin, member, viewer' });
+            return res.status(400).json({ error: 'Invalid role. Website Owner is fixed via .env. Allowed roles: admin, member, viewer' });
         }
 
-        const updated = await User.findByIdAndUpdate(
-            req.params.id,
-            { role },
-            { new: true, select: '-password' }
-        );
+        const targetUser = await User.findById(req.params.id);
+        if (!targetUser) return res.status(404).json({ error: 'User not found' });
 
-        if (!updated) return res.status(404).json({ error: 'User not found' });
-        res.json({ user: updated });
+        if (targetUser.email.toLowerCase() === getOwnerEmail()) {
+            return res.status(400).json({ error: 'Cannot change the role of the global website Owner.' });
+        }
+
+        targetUser.role = role;
+        await targetUser.save();
+
+        res.json({ user: targetUser });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
